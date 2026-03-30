@@ -1,9 +1,10 @@
 import { ChatOpenAI } from "@langchain/openai"
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai"
 import { ChatMistralAI } from "@langchain/mistralai"
+import { ChatAnthropic } from "@langchain/anthropic"
 import { BaseMessage, HumanMessage } from "@langchain/core/messages"
 
-export type LLMProvider = "openai" | "google" | "mistral"
+export type LLMProvider = "openai" | "google" | "mistral" | "anthropic"
 
 export interface LLMConfig {
   provider: LLMProvider
@@ -46,6 +47,12 @@ async function requestLLMUnified(config: LLMConfig, req: LLMRequest): Promise<LL
       })
     } else if (config.provider === "mistral") {
       model = new ChatMistralAI({
+        apiKey: config.apiKey,
+        model: config.model,
+        temperature: temperature,
+      })
+    } else if (config.provider === "anthropic") {
+      model = new ChatAnthropic({
         apiKey: config.apiKey,
         model: config.model,
         temperature: temperature,

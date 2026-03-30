@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { PROVIDERS } from "@/lib/llm-providers"
+import config from "@/lib/config"
 import { cache } from "react"
 import { LLMProvider } from "@/ai/providers/llmProvider"
 
@@ -9,7 +10,7 @@ export type SettingsMap = Record<string, string>
  * Helper to extract LLM provider settings from SettingsMap.
  */
 export function getLLMSettings(settings: SettingsMap) {
-  const priorities = (settings.llm_providers || "openai,google,mistral").split(",").map(p => p.trim()).filter(Boolean)
+  const priorities = (settings.llm_providers || "openai,google,mistral,anthropic").split(",").map(p => p.trim()).filter(Boolean)
 
   const providers = priorities.map((provider) => {
     if (provider === "openai") {
@@ -31,6 +32,13 @@ export function getLLMSettings(settings: SettingsMap) {
         provider: provider as LLMProvider,
         apiKey: settings.mistral_api_key || "",
         model: settings.mistral_model_name || PROVIDERS[2]['defaultModelName'],
+      }
+    }
+    if (provider === "anthropic") {
+      return {
+        provider: provider as LLMProvider,
+        apiKey: settings.anthropic_api_key || config.ai.anthropicApiKey || "",
+        model: settings.anthropic_model_name || config.ai.anthropicModelName || PROVIDERS[3]['defaultModelName'],
       }
     }
     return null

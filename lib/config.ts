@@ -10,6 +10,8 @@ const envSchema = z.object({
   GOOGLE_MODEL_NAME: z.string().default("gemini-2.5-flash"),
   MISTRAL_API_KEY: z.string().optional(),
   MISTRAL_MODEL_NAME: z.string().default("mistral-medium-latest"),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_MODEL_NAME: z.string().default("claude-sonnet-4-5"),
   BETTER_AUTH_SECRET: z
     .string()
     .min(16, "Auth secret must be at least 16 characters")
@@ -59,6 +61,8 @@ const config = {
     googleModelName: env.GOOGLE_MODEL_NAME,
     mistralApiKey: env.MISTRAL_API_KEY,
     mistralModelName: env.MISTRAL_MODEL_NAME,
+    anthropicApiKey: env.ANTHROPIC_API_KEY,
+    anthropicModelName: env.ANTHROPIC_MODEL_NAME,
   },
   auth: {
     secret: env.BETTER_AUTH_SECRET,

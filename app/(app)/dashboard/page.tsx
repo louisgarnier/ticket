@@ -29,8 +29,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <DashboardUnsortedWidget files={unsortedFiles} />
       </div>
 
-      {settings.is_welcome_message_hidden !== "true" && <WelcomeWidget />}
-
       <Separator />
 
       <StatsWidget filters={filters} />
