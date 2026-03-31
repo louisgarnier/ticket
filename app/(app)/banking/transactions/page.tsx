@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth"
-import { getBankTransactionsWithDetails } from "@/models/banking"
+import { getBankTransactionsWithDetails, TRANSACTIONS_PAGE_SIZE } from "@/models/banking"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
@@ -26,7 +26,7 @@ export default async function BankTransactionsPage({
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1)
 
   const user = await getCurrentUser()
-  const { transactions, total, hasMore } = await getBankTransactionsWithDetails(user.id, filter, page)
+  const { transactions, total, hasMore } = await getBankTransactionsWithDetails(user.id, filter, page, TRANSACTIONS_PAGE_SIZE)
 
   const filterTabs: { label: string; value: FilterParam }[] = [
     { label: "All", value: "all" },
@@ -140,7 +140,7 @@ export default async function BankTransactionsPage({
       {(hasMore || page > 1) && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            Showing {(page - 1) * 50 + 1}–{Math.min(page * 50, total)} of {total}
+            Showing {(page - 1) * TRANSACTIONS_PAGE_SIZE + 1}–{Math.min(page * TRANSACTIONS_PAGE_SIZE, total)} of {total}
           </span>
           <div className="flex gap-2">
             {page > 1 && (

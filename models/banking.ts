@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db"
 import { Prisma } from "@/prisma/client"
 
+export const TRANSACTIONS_PAGE_SIZE = 50
+
 // BankConnection
 
 export async function createBankConnection(data: {
@@ -92,7 +94,7 @@ export async function getBankTransactionsWithDetails(
   userId: string,
   filter: "all" | "matched" | "unmatched" = "all",
   page: number = 1,
-  limit: number = 50
+  limit: number = TRANSACTIONS_PAGE_SIZE
 ) {
   const offset = (page - 1) * limit
 
@@ -101,6 +103,8 @@ export async function getBankTransactionsWithDetails(
   if (filter === "matched") {
     where.matches = { some: { status: "confirmed" } }
   } else if (filter === "unmatched") {
+    // "unmatched" means no confirmed match exists — this intentionally includes transactions
+    // with zero match records AND transactions with only suggested/rejected matches.
     where.matches = { none: { status: "confirmed" } }
   }
 
@@ -108,6 +112,9 @@ export async function getBankTransactionsWithDetails(
     prisma.bankTransaction.findMany({
       where,
       include: {
+        // IMPORTANT: this filter must stay in sync with the `where` filter above.
+        // Both use `status: "confirmed"` — if they diverge, `matchStatus` in the
+        // mapped output below will report incorrect values.
         matches: { where: { status: "confirmed" } },
       },
       orderBy: { date: "desc" },
