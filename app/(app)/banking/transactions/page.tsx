@@ -121,7 +121,7 @@ export default async function BankTransactionsPage({
                   <td className="px-4 py-3">
                     {tx.matchStatus === "matched" ? (
                       <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
-                        Matched
+                        {tx.isAutoMatched ? "Auto-matched" : "Matched"}
                       </Badge>
                     ) : tx.matchStatus === "suggested" ? (
                       <Badge className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">

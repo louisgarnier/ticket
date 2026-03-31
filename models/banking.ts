@@ -115,7 +115,7 @@ export async function getBankTransactionsWithDetails(
         // Fetch both confirmed and suggested matches to compute status and suggestion count.
         matches: {
           where: { status: { in: ["confirmed", "suggested"] } },
-          select: { status: true },
+          select: { status: true, matchType: true },
         },
       },
       orderBy: { date: "desc" },
@@ -131,6 +131,7 @@ export async function getBankTransactionsWithDetails(
       const suggestedCount = tx.matches.filter((m) => m.status === "suggested").length
       const matchStatus =
         confirmedCount > 0 ? ("matched" as const) : suggestedCount > 0 ? ("suggested" as const) : ("unmatched" as const)
+      const isAutoMatched = tx.matches.some((m) => m.status === "confirmed" && m.matchType === "exact")
       return {
         id: tx.id,
         externalId: tx.externalId,
@@ -140,6 +141,7 @@ export async function getBankTransactionsWithDetails(
         description: tx.description ?? "",
         institutionName: tx.institutionName ?? "",
         matchStatus,
+        isAutoMatched,
         suggestionCount: matchStatus === "suggested" ? suggestedCount : 0,
       }
     }),
