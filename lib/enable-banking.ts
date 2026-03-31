@@ -45,3 +45,33 @@ export async function getAspsps(country: string): Promise<{ name: string; countr
   const data = await res.json()
   return Array.isArray(data) ? data : (data.aspsps ?? [])
 }
+
+export async function startAuth(aspspName: string, country: string, redirectUrl: string): Promise<string> {
+  const baseUrl = process.env.ENABLE_BANKING_BASE_URL!
+  const headers = await _authHeaders()
+
+  const payload = {
+    aspsp: {
+      name: aspspName,
+      country: country,
+    },
+    state: crypto.randomUUID(),
+    redirect_url: redirectUrl,
+    psu_type: "personal",
+  }
+
+  const res = await fetch(`${baseUrl}/auth`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Enable Banking POST /auth error: ${res.status} ${text}`)
+  }
+
+  const data = await res.json()
+  // Enable Banking returns { url: "https://bank-oauth-url..." }
+  return data.url
+}
