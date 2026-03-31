@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { Prisma } from "@/prisma/client"
 import { fetchTransactions } from "@/lib/enable-banking"
-import { createBankTransactionsBulk } from "@/models/banking"
+import { createBankTransactionsBulk, updateBankConnectionLastSynced } from "@/models/banking"
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
@@ -12,6 +13,8 @@ export async function POST(request: Request) {
 
   const body = await request.json()
   const { accountUid } = body as { accountUid: string }
+
+  if (!accountUid) return NextResponse.json({ error: "accountUid required" }, { status: 400 })
 
   const connection = await prisma.bankConnection.findFirst({
     where: { accountUid, userId: user.id },
@@ -25,27 +28,30 @@ export async function POST(request: Request) {
     ? connection.lastSynced.toISOString().slice(0, 10)
     : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-  const rawTransactions = await fetchTransactions(accountUid, dateFrom)
+  let total: number
+  try {
+    const rawTransactions = await fetchTransactions(accountUid, dateFrom)
 
-  const transactions = rawTransactions.map((tx) => ({
-    userId: user.id,
-    accountUid,
-    externalId: tx.externalId,
-    idempotencyKey: `${accountUid}:${tx.externalId}`,
-    date: new Date(tx.bookingDate),
-    amount: tx.amount,
-    currency: tx.currency,
-    description: tx.description,
-    institutionName: connection.institutionName ?? undefined,
-    rawData: tx as object,
-  }))
+    const transactions = rawTransactions.map((tx) => ({
+      userId: user.id,
+      accountUid,
+      externalId: tx.externalId,
+      idempotencyKey: `${accountUid}:${tx.externalId}`,
+      date: new Date(tx.bookingDate),
+      amount: tx.amount,
+      currency: tx.currency,
+      description: tx.description,
+      institutionName: connection.institutionName ?? undefined,
+      rawData: tx as Prisma.InputJsonValue,
+    }))
 
-  const { total } = await createBankTransactionsBulk(transactions)
+    ;({ total } = await createBankTransactionsBulk(transactions))
+  } catch (err) {
+    console.error("[BankingSync] fetchTransactions/insert error:", err)
+    return NextResponse.json({ error: "Failed to sync transactions" }, { status: 500 })
+  }
 
-  await prisma.bankConnection.update({
-    where: { accountUid },
-    data: { lastSynced: new Date() },
-  })
+  await updateBankConnectionLastSynced(accountUid)
 
   console.log(`✅ [BankingSync] synced: accountUid=${accountUid} count=${total}`)
 

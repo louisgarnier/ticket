@@ -162,6 +162,12 @@ export async function fetchTransactions(
     for (const tx of rawTxs) {
       const externalId =
         tx.transaction_id ?? tx.entry_reference ?? tx.internal_transaction_id ?? ""
+
+      if (externalId === "") {
+        console.warn("⚠️ [EnableBanking] fetchTransactions: skipping transaction with empty externalId", tx)
+        continue
+      }
+
       const rawAmount = parseFloat(tx.transaction_amount?.amount ?? "0")
       const amount = tx.credit_debit_indicator === "DBIT" ? -rawAmount : rawAmount
       const currency: string = tx.transaction_amount?.currency ?? ""
