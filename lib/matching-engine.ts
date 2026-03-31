@@ -104,7 +104,10 @@ export async function scoreForBankTransaction(
       externalId.length > 3 &&
       (invDesc.toLowerCase().includes(externalId.toLowerCase()) ||
         bankDesc.toLowerCase().includes(externalId.toLowerCase()))
-    const amountMatch = Math.abs(bankAmount - invAmount) < 0.01
+    // Use absolute amounts — bank debits are negative, invoices are positive
+    const absBankAmount = Math.abs(bankAmount)
+    const absInvAmount = Math.abs(invAmount)
+    const amountMatch = Math.abs(absBankAmount - absInvAmount) < 0.01
     const currencyMatch = bankCurrency === invCurrency
 
     // ── Score 100: Exact match ──
@@ -120,8 +123,8 @@ export async function scoreForBankTransaction(
 
     // ── Score 85: Strong match ──
     if (
-      Math.abs(bankAmount - invAmount) < 0.01 &&
-      bankCurrency === invCurrency &&
+      amountMatch &&
+      currencyMatch &&
       invDate !== null &&
       daysDiff(bankDate, invDate) <= 3
     ) {
@@ -135,9 +138,9 @@ export async function scoreForBankTransaction(
     }
 
     // ── Score 60–80: Fuzzy match ──
-    const amountTolerance = Math.abs(bankAmount) * 0.01
+    const amountTolerance = absBankAmount * 0.01
     if (
-      Math.abs(bankAmount - invAmount) <= amountTolerance &&
+      Math.abs(absBankAmount - absInvAmount) <= amountTolerance &&
       bankCurrency === invCurrency &&
       invDesc.length > 0 &&
       bankDesc.length > 0
