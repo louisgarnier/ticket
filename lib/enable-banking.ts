@@ -21,7 +21,7 @@ async function _makeJwt(): Promise<string> {
   return new SignJWT({})
     .setProtectedHeader({ alg: "RS256", kid: appId })
     .setIssuer(appId)
-    .setAudience("enablebanking.com")
+    .setAudience("api.enablebanking.com")
     .setIssuedAt(now)
     .setExpirationTime(now + 3600)
     .sign(privateKey)
