@@ -31,7 +31,10 @@ export async function POST(request: Request) {
       ? connection.lastSynced.toISOString().slice(0, 10)
       : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-  let total: number
+  // Fix 2: Move matching engine call and updateBankConnectionLastSynced inside the try/catch
+  // so errors return a JSON 500 instead of crashing the process.
+  // Fix 3: Use `inserted` (new rows only) instead of `total` (all fetched) in the response.
+  let inserted: number
   try {
     const rawTransactions = await fetchTransactions(accountUid, dateFrom)
 
@@ -48,22 +51,22 @@ export async function POST(request: Request) {
       rawData: tx as Prisma.InputJsonValue,
     }))
 
-    ;({ total } = await createBankTransactionsBulk(transactions))
+    ;({ inserted } = await createBankTransactionsBulk(transactions))
+
+    // Run matching engine for all bank transactions in this connection
+    const allBankTxs = await prisma.bankTransaction.findMany({
+      where: { accountUid: connection.accountUid },
+      select: { id: true },
+    })
+    await Promise.allSettled(allBankTxs.map((tx) => scoreForBankTransaction(tx.id, user.id)))
+
+    await updateBankConnectionLastSynced(accountUid)
+
+    console.log(`✅ [BankingSync] synced: accountUid=${accountUid} inserted=${inserted}`)
   } catch (err) {
-    console.error("[BankingSync] fetchTransactions/insert error:", err)
+    console.error("[BankingSync] sync error:", err)
     return NextResponse.json({ error: "Failed to sync transactions" }, { status: 500 })
   }
 
-  // Run matching engine for all bank transactions in this connection
-  const allBankTxs = await prisma.bankTransaction.findMany({
-    where: { accountUid: connection.accountUid },
-    select: { id: true },
-  })
-  await Promise.allSettled(allBankTxs.map((tx) => scoreForBankTransaction(tx.id, user.id)))
-
-  await updateBankConnectionLastSynced(accountUid)
-
-  console.log(`✅ [BankingSync] synced: accountUid=${accountUid} count=${total}`)
-
-  return NextResponse.json({ synced: total })
+  return NextResponse.json({ synced: inserted })
 }

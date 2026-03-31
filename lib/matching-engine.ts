@@ -21,10 +21,14 @@ function daysDiff(dateA: Date, dateB: Date): number {
 // Score a bank transaction against all eligible invoice transactions.
 // Returns the number of match records created/updated.
 // ──────────────────────────────────────────────
-export async function scoreForBankTransaction(bankTransactionId: string, userId: string): Promise<number> {
-  // Fetch the bank transaction
-  const bankTx = await prisma.bankTransaction.findUnique({
-    where: { id: bankTransactionId },
+export async function scoreForBankTransaction(
+  bankTransactionId: string,
+  userId: string,
+  targetInvoiceTransactionId?: string
+): Promise<number> {
+  // Fix 1: Fetch the bank transaction scoped to userId to prevent cross-user access
+  const bankTx = await prisma.bankTransaction.findFirst({
+    where: { id: bankTransactionId, userId },
     include: { matches: { select: { transactionId: true, status: true } } },
   })
 
@@ -37,28 +41,43 @@ export async function scoreForBankTransaction(bankTransactionId: string, userId:
   // IDs already linked to this bank transaction
   const alreadyMatchedInvoiceIds = new Set(bankTx.matches.map((m) => m.transactionId).filter(Boolean) as string[])
 
-  // Fetch eligible invoice transactions for this user
-  const invoiceTxs = await prisma.transaction.findMany({
-    where: {
-      userId,
-      total: { not: null },
-      currencyCode: { not: null },
-    },
-    select: {
-      id: true,
-      total: true,
-      currencyCode: true,
-      issuedAt: true,
-      description: true,
-      name: true,
-    },
-  })
+  // Fix 5 & 6: Fetch eligible invoice transactions
+  // When targetInvoiceTransactionId is set, only score against that specific invoice.
+  // Otherwise fetch up to 500 most recent invoices to cap memory usage.
+  const invoiceTxs = targetInvoiceTransactionId
+    ? await prisma.transaction.findMany({
+        where: { id: targetInvoiceTransactionId, userId },
+        select: {
+          id: true,
+          total: true,
+          currencyCode: true,
+          issuedAt: true,
+          description: true,
+          name: true,
+        },
+      })
+    : await prisma.transaction.findMany({
+        where: {
+          userId,
+          total: { not: null },
+          currencyCode: { not: null },
+        },
+        orderBy: { issuedAt: "desc" },
+        take: 500,
+        select: {
+          id: true,
+          total: true,
+          currencyCode: true,
+          issuedAt: true,
+          description: true,
+          name: true,
+        },
+      })
 
   const bankAmount = Number(bankTx.amount)
   const bankCurrency = bankTx.currency.toUpperCase()
   const bankDate = bankTx.date
   const bankDesc = bankTx.description ?? ""
-  const bankExtId = bankTx.externalId ?? ""
 
   type Candidate = {
     transactionId: string
@@ -77,14 +96,19 @@ export async function scoreForBankTransaction(bankTransactionId: string, userId:
     const invDate = inv.issuedAt ?? null
     const invDesc = [inv.name, inv.description].filter(Boolean).join(" ")
 
+    // Fix 4: Exact match — only auto-confirm when externalId is non-empty and
+    // appears in either the invoice description or the bank description.
+    // A broad substring match on invDesc is too prone to false positives.
+    const externalId = bankTx.externalId ?? ""
+    const hasRefMatch =
+      externalId.length > 3 &&
+      (invDesc.toLowerCase().includes(externalId.toLowerCase()) ||
+        bankDesc.toLowerCase().includes(externalId.toLowerCase()))
+    const amountMatch = Math.abs(bankAmount - invAmount) < 0.01
+    const currencyMatch = bankCurrency === invCurrency
+
     // ── Score 100: Exact match ──
-    if (
-      Math.abs(bankAmount - invAmount) < 0.01 &&
-      bankCurrency === invCurrency &&
-      (invDesc.includes(bankExtId) ||
-        bankDesc.toLowerCase().includes(invDesc.toLowerCase()) ||
-        (bankExtId && invDesc.toLowerCase().includes(bankExtId.toLowerCase())))
-    ) {
+    if (amountMatch && currencyMatch && hasRefMatch) {
       candidates.push({
         transactionId: inv.id,
         matchType: "exact",
@@ -138,7 +162,7 @@ export async function scoreForBankTransaction(bankTransactionId: string, userId:
   const top5 = candidates.slice(0, 5)
 
   // Upsert matches: delete existing suggested, then create new ones
-  // (no unique constraint on the table, so we do a findFirst + createOrSkip approach)
+  // TODO: add @@unique([bankTransactionId, transactionId]) to prevent race condition on concurrent creates
   let created = 0
   for (const candidate of top5) {
     const existing = await prisma.bankTransactionMatch.findFirst({
@@ -194,7 +218,9 @@ export async function scoreForInvoiceTransaction(invoiceTransactionId: string, u
     select: { id: true },
   })
 
-  await Promise.allSettled(bankTxs.map((tx) => scoreForBankTransaction(tx.id, userId)))
+  // Fix 6: Pass invoiceTransactionId so each call only scores against this specific invoice,
+  // not all invoices for the user.
+  await Promise.allSettled(bankTxs.map((tx) => scoreForBankTransaction(tx.id, userId, invoiceTransactionId)))
 
   console.log(
     `✅ [MatchingEngine] invoiceTx=${invoiceTransactionId} scored against ${bankTxs.length} bank transactions`
