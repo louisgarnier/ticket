@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mockEnableBanking } from "./mock-enable-banking"
 
+// Note: getAspsps() unit tests require a real RS256 private key for JWT signing.
+// JWT signing is tested manually / integration test.
+// The fetch-level mock tests below cover the HTTP contract without a real key.
+
 describe("Enable Banking — ASPSP discovery", () => {
   let restore: () => void
 

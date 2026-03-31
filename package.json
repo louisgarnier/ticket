@@ -40,6 +40,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "jose": "^6.2.2",
     "jszip": "^3.10.1",
     "langchain": "^0.3.30",
     "lucide-react": "^0.475.0",
