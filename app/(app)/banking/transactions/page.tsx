@@ -123,6 +123,10 @@ export default async function BankTransactionsPage({
                       <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
                         Matched
                       </Badge>
+                    ) : tx.matchStatus === "suggested" ? (
+                      <Badge className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">
+                        {tx.suggestionCount} suggestion{tx.suggestionCount !== 1 ? "s" : ""}
+                      </Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">
                         Unmatched

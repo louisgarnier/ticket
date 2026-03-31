@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { Prisma } from "@/prisma/client"
 import { fetchTransactions } from "@/lib/enable-banking"
 import { createBankTransactionsBulk, updateBankConnectionLastSynced } from "@/models/banking"
+import { scoreForBankTransaction } from "@/lib/matching-engine"
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
@@ -52,6 +53,13 @@ export async function POST(request: Request) {
     console.error("[BankingSync] fetchTransactions/insert error:", err)
     return NextResponse.json({ error: "Failed to sync transactions" }, { status: 500 })
   }
+
+  // Run matching engine for all bank transactions in this connection
+  const allBankTxs = await prisma.bankTransaction.findMany({
+    where: { accountUid: connection.accountUid },
+    select: { id: true },
+  })
+  await Promise.allSettled(allBankTxs.map((tx) => scoreForBankTransaction(tx.id, user.id)))
 
   await updateBankConnectionLastSynced(accountUid)
 

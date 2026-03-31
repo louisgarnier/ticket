@@ -20,6 +20,7 @@ import {
   updateTransaction,
   updateTransactionFiles,
 } from "@/models/transactions"
+import { scoreForInvoiceTransaction } from "@/lib/matching-engine"
 import { updateUser } from "@/models/users"
 import { Transaction } from "@/prisma/client"
 import { randomUUID } from "crypto"
@@ -40,6 +41,11 @@ export async function createTransactionAction(
     }
 
     const transaction = await createTransaction(user.id, validatedForm.data)
+
+    // Fire-and-forget: score this new invoice transaction against all unmatched bank transactions
+    scoreForInvoiceTransaction(transaction.id, user.id).catch((err) =>
+      console.error("[MatchingEngine] scoreForInvoiceTransaction error:", err)
+    )
 
     revalidatePath("/transactions")
     return { success: true, data: transaction }
@@ -63,6 +69,11 @@ export async function saveTransactionAction(
     }
 
     const transaction = await updateTransaction(transactionId, user.id, validatedForm.data)
+
+    // Fire-and-forget: re-score this invoice transaction after updates
+    scoreForInvoiceTransaction(transaction.id, user.id).catch((err) =>
+      console.error("[MatchingEngine] scoreForInvoiceTransaction error:", err)
+    )
 
     revalidatePath("/transactions")
     return { success: true, data: transaction }

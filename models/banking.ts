@@ -112,10 +112,11 @@ export async function getBankTransactionsWithDetails(
     prisma.bankTransaction.findMany({
       where,
       include: {
-        // IMPORTANT: this filter must stay in sync with the `where` filter above.
-        // Both use `status: "confirmed"` — if they diverge, `matchStatus` in the
-        // mapped output below will report incorrect values.
-        matches: { where: { status: "confirmed" } },
+        // Fetch both confirmed and suggested matches to compute status and suggestion count.
+        matches: {
+          where: { status: { in: ["confirmed", "suggested"] } },
+          select: { status: true },
+        },
       },
       orderBy: { date: "desc" },
       skip: offset,
@@ -125,16 +126,23 @@ export async function getBankTransactionsWithDetails(
   ])
 
   return {
-    transactions: transactions.map((tx) => ({
-      id: tx.id,
-      externalId: tx.externalId,
-      amount: Number(tx.amount),
-      currency: tx.currency,
-      bookingDate: tx.date.toISOString().slice(0, 10),
-      description: tx.description ?? "",
-      institutionName: tx.institutionName ?? "",
-      matchStatus: tx.matches.length > 0 ? ("matched" as const) : ("unmatched" as const),
-    })),
+    transactions: transactions.map((tx) => {
+      const confirmedCount = tx.matches.filter((m) => m.status === "confirmed").length
+      const suggestedCount = tx.matches.filter((m) => m.status === "suggested").length
+      const matchStatus =
+        confirmedCount > 0 ? ("matched" as const) : suggestedCount > 0 ? ("suggested" as const) : ("unmatched" as const)
+      return {
+        id: tx.id,
+        externalId: tx.externalId,
+        amount: Number(tx.amount),
+        currency: tx.currency,
+        bookingDate: tx.date.toISOString().slice(0, 10),
+        description: tx.description ?? "",
+        institutionName: tx.institutionName ?? "",
+        matchStatus,
+        suggestionCount: matchStatus === "suggested" ? suggestedCount : 0,
+      }
+    }),
     total,
     page,
     hasMore: offset + limit < total,
