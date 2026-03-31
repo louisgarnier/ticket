@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Building2, RefreshCw, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 type BankConnection = {
   id: string
@@ -35,9 +36,12 @@ export function BankConnectionsList({ connections }: { connections: BankConnecti
         body: JSON.stringify({ accountUid }),
       })
       if (!res.ok) throw new Error("Sync failed")
+      const data = await res.json()
+      toast.success(`Synced ${data.synced} transactions`)
       router.refresh()
     } catch (err) {
       console.error(err)
+      toast.error("Sync failed. Please try again.")
     } finally {
       setSyncing(null)
     }
@@ -62,37 +66,42 @@ export function BankConnectionsList({ connections }: { connections: BankConnecti
     <div className="flex flex-col gap-3">
       {connections.map((conn) => (
         <Card key={conn.id}>
-          <CardContent className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <Building2 className="w-8 h-8 text-muted-foreground" />
-              <div>
-                <p className="font-medium">{conn.institutionName ?? conn.accountName ?? "Unknown Bank"}</p>
-                <p className="text-sm text-muted-foreground">{maskIban(conn.accountIban)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {conn.lastSynced
-                    ? `Last synced: ${new Date(conn.lastSynced).toLocaleDateString()}`
-                    : "Never synced"}
-                </p>
+          <CardContent className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Building2 className="w-5 h-5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{conn.institutionName ?? "Unknown Bank"}</p>
+                  {conn.accountName && (
+                    <p className="text-xs text-muted-foreground truncate">{conn.accountName}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-muted-foreground">{maskIban(conn.accountIban)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {conn.lastSynced
+                      ? `Synced ${new Date(conn.lastSynced).toLocaleDateString()}`
+                      : "Never synced"}
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex shrink-0 gap-1 ml-4">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => handleSync(conn.accountUid)}
                 disabled={syncing === conn.accountUid}
               >
-                <RefreshCw className={`w-4 h-4 mr-1 ${syncing === conn.accountUid ? "animate-spin" : ""}`} />
-                Sync
+                <RefreshCw className={`w-4 h-4 ${syncing === conn.accountUid ? "animate-spin" : ""}`} />
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => handleDisconnect(conn.accountUid)}
                 disabled={disconnecting === conn.accountUid}
               >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Disconnect
+                <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           </CardContent>

@@ -102,20 +102,77 @@ export async function createSession(code: string): Promise<{ sessionId: string; 
   }
 
   const data = await res.json()
+  const institutionName: string = data.aspsp?.name ?? ""
 
-  // Map accounts: Enable Banking returns accounts with uid field variants.
-  // Normalize to account_uid, supporting uid, account_uid, and account_id field names.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rawAccounts: any[] = data.accounts ?? []
-  const accounts: BankAccount[] = rawAccounts.map((a) => ({
-    account_uid: a.account_uid ?? a.uid ?? a.account_id ?? "",
-    iban: a.iban,
-    name: a.name,
-    institution_name: a.institution_name ?? a.aspsp?.name,
-  }))
+  const accounts: BankAccount[] = rawAccounts.map((a) => {
+    const label = [a.name, a.details, a.currency].filter(Boolean).join(" · ")
+    return {
+      account_uid: a.uid,
+      iban: a.account_id?.iban ?? null,
+      name: label,
+      institution_name: institutionName,
+    }
+  })
 
   return {
     sessionId: data.session_id,
     accounts,
   }
+}
+
+export type RawTransaction = {
+  externalId: string
+  amount: number
+  currency: string
+  bookingDate: string
+  description: string
+}
+
+export async function fetchTransactions(
+  accountUid: string,
+  dateFrom: string
+): Promise<RawTransaction[]> {
+  const baseUrl = process.env.ENABLE_BANKING_BASE_URL!
+  const headers = await _authHeaders()
+  const dateTo = new Date().toISOString().slice(0, 10)
+
+  const allTransactions: RawTransaction[] = []
+  let continuationKey: string | undefined = undefined
+
+  do {
+    const url = new URL(`${baseUrl}/accounts/${accountUid}/transactions`)
+    url.searchParams.set("date_from", dateFrom)
+    url.searchParams.set("date_to", dateTo)
+    if (continuationKey) {
+      url.searchParams.set("continuation_key", continuationKey)
+    }
+
+    const res = await fetch(url.toString(), { headers })
+    if (!res.ok) {
+      throw new Error(`Enable Banking GET /accounts/${accountUid}/transactions error: ${res.status} ${await res.text()}`)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await res.json()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawTxs: any[] = data.transactions ?? []
+
+    for (const tx of rawTxs) {
+      const externalId =
+        tx.transaction_id ?? tx.entry_reference ?? tx.internal_transaction_id ?? ""
+      const rawAmount = parseFloat(tx.transaction_amount?.amount ?? "0")
+      const amount = tx.credit_debit_indicator === "DBIT" ? -rawAmount : rawAmount
+      const currency: string = tx.transaction_amount?.currency ?? ""
+      const bookingDate: string = tx.booking_date ?? tx.value_date ?? ""
+      const description: string = tx.remittance_information?.unstructured?.[0] ?? ""
+
+      allTransactions.push({ externalId, amount, currency, bookingDate, description })
+    }
+
+    continuationKey = data.continuation_key ?? undefined
+  } while (continuationKey)
+
+  return allTransactions
 }
