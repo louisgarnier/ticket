@@ -88,6 +88,52 @@ export async function getBankTransactions(
   })
 }
 
+export async function getBankTransactionsWithDetails(
+  userId: string,
+  filter: "all" | "matched" | "unmatched" = "all",
+  page: number = 1,
+  limit: number = 50
+) {
+  const offset = (page - 1) * limit
+
+  const where: Prisma.BankTransactionWhereInput = { userId }
+
+  if (filter === "matched") {
+    where.matches = { some: { status: "confirmed" } }
+  } else if (filter === "unmatched") {
+    where.matches = { none: { status: "confirmed" } }
+  }
+
+  const [transactions, total] = await Promise.all([
+    prisma.bankTransaction.findMany({
+      where,
+      include: {
+        matches: { where: { status: "confirmed" } },
+      },
+      orderBy: { date: "desc" },
+      skip: offset,
+      take: limit,
+    }),
+    prisma.bankTransaction.count({ where }),
+  ])
+
+  return {
+    transactions: transactions.map((tx) => ({
+      id: tx.id,
+      externalId: tx.externalId,
+      amount: Number(tx.amount),
+      currency: tx.currency,
+      bookingDate: tx.date.toISOString().slice(0, 10),
+      description: tx.description ?? "",
+      institutionName: tx.institutionName ?? "",
+      matchStatus: tx.matches.length > 0 ? ("matched" as const) : ("unmatched" as const),
+    })),
+    total,
+    page,
+    hasMore: offset + limit < total,
+  }
+}
+
 // BankTransactionMatch
 
 export async function createBankTransactionMatch(data: {
