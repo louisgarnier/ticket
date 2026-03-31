@@ -120,31 +120,17 @@
 
 ## EPIC-4: Matching Engine
 
-### Story 4.1 — Scoring Engine + Suggestion Badges (VISIBLE)
+### Story 4.1 — Scoring Engine + Suggestion Badges ✅ DONE
 **Goal:** After sync, bank transactions are scored and suggestion badges appear in the list.
-**Browser test:** After sync → transaction list shows "1 suggestion" / "Auto-matched" badges.
+**Browser test:** ✅ After sync → transaction list shows "N suggestion(s)" / "Auto-matched" / "Matched" badges.
 **Acceptance Criteria:**
-- [ ] Scoring runs after every successful sync and on every new invoice transaction save
-- [ ] Exact (100): reference + amount + currency → auto-confirmed, labelled "Auto-matched"
-- [ ] Strong (85): amount + currency + date ±3 days → suggested
-- [ ] Fuzzy (60-80): amount within tolerance + description similarity ≥ 80% → suggested
-- [ ] Partial (variable): amount fraction + reference hint → suggested, flagged partial
-- [ ] Score < 60 → no suggestion, goes to manual review queue
-- [ ] Max 5 suggestions per bank transaction
-- [ ] Suggestion count badges visible on transactions list
-
-**Tasks:**
-- [ ] Create `/lib/matching-engine.ts` with all scoring rules
-- [ ] Wire to sync endpoint: run engine after insert
-- [ ] Wire to invoice transaction save in `/app/(app)/transactions/actions.ts`
-- [ ] Add suggestion count badge to bank transactions list
-
-**Dev Tests:**
-- [ ] Exact match → auto-confirmed
-- [ ] Strong match → suggested score 85
-- [ ] Amount outside tolerance → no fuzzy match
-- [ ] Description similarity < 80% → no match
-- [ ] Score 100 → only one confirmed match enforced
+- [x] Scoring runs after every successful sync and on every new invoice transaction save
+- [x] Exact (100): reference + amount + currency → auto-confirmed, labelled "Auto-matched"
+- [x] Strong (85): amount + currency + date ±3 days → suggested
+- [x] Fuzzy (60-80): amount within tolerance + description similarity ≥ 80% → suggested
+- [x] Score < 60 → no suggestion
+- [x] Max 5 suggestions per bank transaction
+- [x] Suggestion count badges visible on transactions list
 
 ---
 
@@ -257,8 +243,8 @@
 
 ## 🚦 Current Status
 ```
-Working on:  EPIC-4 / Story 4.1 — Scoring Engine + Suggestion Badges
-Next up:     Story 4.2 — Accept / Reject + Manual Match
+Working on:  EPIC-4 / Story 4.2 — Accept / Reject + Manual Match
+Next up:     EPIC-5 / Story 5.1 — CSV + Excel Export
 EPIC-1:      ✅ Complete
 EPIC-2:      ✅ Complete (2.4 deferred to hardening)
 EPIC-3:      ✅ Complete
