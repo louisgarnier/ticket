@@ -2,10 +2,36 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Building2, RefreshCw, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+
+const SYNC_PERIODS = [
+  { label: "Last 7 days", value: "7d" },
+  { label: "Last 30 days", value: "30d" },
+  { label: "Last 3 months", value: "3m" },
+  { label: "Last 6 months", value: "6m" },
+  { label: "Last year", value: "1y" },
+]
+
+function getDateFrom(period: string): string {
+  const d = new Date()
+  switch (period) {
+    case "7d": d.setDate(d.getDate() - 7); break
+    case "30d": d.setDate(d.getDate() - 30); break
+    case "3m": d.setMonth(d.getMonth() - 3); break
+    case "6m": d.setMonth(d.getMonth() - 6); break
+    case "1y": d.setFullYear(d.getFullYear() - 1); break
+  }
+  return d.toISOString().slice(0, 10)
+}
 
 type BankConnection = {
   id: string
@@ -27,13 +53,13 @@ export function BankConnectionsList({ connections }: { connections: BankConnecti
   const [syncing, setSyncing] = useState<string | null>(null)
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
 
-  async function handleSync(accountUid: string) {
+  async function handleSync(accountUid: string, dateFrom?: string) {
     setSyncing(accountUid)
     try {
       const res = await fetch("/api/banking/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountUid }),
+        body: JSON.stringify({ accountUid, ...(dateFrom ? { dateFrom } : {}) }),
       })
       if (!res.ok) throw new Error("Sync failed")
       const data = await res.json()
@@ -87,14 +113,27 @@ export function BankConnectionsList({ connections }: { connections: BankConnecti
               </div>
             </div>
             <div className="flex shrink-0 gap-1 ml-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleSync(conn.accountUid)}
-                disabled={syncing === conn.accountUid}
-              >
-                <RefreshCw className={`w-4 h-4 ${syncing === conn.accountUid ? "animate-spin" : ""}`} />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={syncing === conn.accountUid}
+                  >
+                    <RefreshCw className={`w-4 h-4 ${syncing === conn.accountUid ? "animate-spin" : ""}`} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {SYNC_PERIODS.map((period) => (
+                    <DropdownMenuItem
+                      key={period.value}
+                      onClick={() => handleSync(conn.accountUid, getDateFrom(period.value))}
+                    >
+                      {period.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="ghost"
                 size="sm"

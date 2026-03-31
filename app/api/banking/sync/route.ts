@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { accountUid } = body as { accountUid: string }
+  const { accountUid, dateFrom: dateFromOverride } = body as { accountUid: string; dateFrom?: string }
 
   if (!accountUid) return NextResponse.json({ error: "accountUid required" }, { status: 400 })
 
@@ -24,9 +24,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Connection not found" }, { status: 404 })
   }
 
-  const dateFrom = connection.lastSynced
-    ? connection.lastSynced.toISOString().slice(0, 10)
-    : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const dateFrom = dateFromOverride
+    ? dateFromOverride
+    : connection.lastSynced
+      ? connection.lastSynced.toISOString().slice(0, 10)
+      : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
   let total: number
   try {
