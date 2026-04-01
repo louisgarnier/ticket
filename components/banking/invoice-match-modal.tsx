@@ -127,7 +127,7 @@ export function InvoiceMatchModal({
 
         {/* Nearby bank transactions */}
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-medium">Nearby bank transactions (±30 days)</p>
+          <p className="text-sm font-medium">All bank transactions (sorted by date proximity)</p>
 
           {loading && (
             <div className="flex items-center justify-center py-8">
@@ -137,7 +137,7 @@ export function InvoiceMatchModal({
 
           {!loading && bankTxs.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              No unmatched bank transactions found within ±30 days of this invoice.
+              No unmatched bank transactions found.
             </p>
           )}
 

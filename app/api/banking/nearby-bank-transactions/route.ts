@@ -26,20 +26,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
     }
 
-    if (!invoice.issuedAt) {
-      return NextResponse.json({ results: [] })
-    }
-
-    const referenceDate = invoice.issuedAt
-    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
-    const dateFrom = new Date(referenceDate.getTime() - thirtyDaysMs)
-    const dateTo = new Date(referenceDate.getTime() + thirtyDaysMs)
-
-    // Return unmatched bank transactions within ±30 days
+    // Return all unmatched bank transactions, sorted by proximity to invoice date
     const bankTransactions = await prisma.bankTransaction.findMany({
       where: {
         userId: user.id,
-        date: { gte: dateFrom, lte: dateTo },
         // Exclude those with a confirmed match
         matches: { none: { status: "confirmed" } },
       },
@@ -51,16 +41,24 @@ export async function GET(request: Request) {
         description: true,
         institutionName: true,
       },
-      orderBy: { date: "desc" },
-      take: 20,
     })
 
-    const results = bankTransactions.map((tx) => ({
+    const mapped = bankTransactions.map((tx) => ({
       ...tx,
       amount: Number(tx.amount),
     }))
 
-    return NextResponse.json({ results })
+    // Sort by proximity to invoice date (closest first)
+    if (invoice.issuedAt) {
+      const referenceDate = new Date(invoice.issuedAt)
+      mapped.sort((a, b) => {
+        const diffA = Math.abs(new Date(a.date).getTime() - referenceDate.getTime())
+        const diffB = Math.abs(new Date(b.date).getTime() - referenceDate.getTime())
+        return diffA - diffB
+      })
+    }
+
+    return NextResponse.json({ results: mapped })
   } catch (err) {
     console.error("[nearby-bank-transactions] error:", err)
     return NextResponse.json({ error: "Internal error" }, { status: 500 })

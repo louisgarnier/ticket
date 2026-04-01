@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import {
   Dialog,
@@ -12,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Check, XCircle, Unlink, Search, Link2, Loader2 } from "lucide-react"
+import { Check, XCircle, Unlink, Link2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 type Transaction = {
@@ -93,16 +92,32 @@ function MatchModalBody({
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<Invoice[]>([])
-  const [searching, setSearching] = useState(false)
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("")
+  const [loadingInvoices, setLoadingInvoices] = useState(false)
 
   const confirmedMatch = detail.matches.find((m) => m.status === "confirmed")
   const suggestedMatches = detail.matches
     .filter((m) => m.status === "suggested")
     .sort((a, b) => b.confidenceScore - a.confidenceScore)
-  const allRejected = detail.matches.length > 0 && detail.matches.every((m) => m.status === "rejected")
-  const noMatches = detail.matches.length === 0
+
+  // Fetch all invoices sorted by proximity to this bank transaction's date
+  useEffect(() => {
+    if (confirmedMatch) return
+    setLoadingInvoices(true)
+    const dateParam = formatDate(detail.date)
+    fetch(`/api/banking/invoices-for-matching?bankTransactionDate=${encodeURIComponent(dateParam)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const results: Invoice[] = data.results ?? []
+        setInvoices(results)
+        if (results.length > 0) {
+          setSelectedInvoiceId(results[0].id)
+        }
+      })
+      .catch(() => toast.error("Failed to load invoices"))
+      .finally(() => setLoadingInvoices(false))
+  }, [detail.id, detail.date, confirmedMatch])
 
   async function handleConfirm(matchId: string) {
     setLoading(matchId)
@@ -152,27 +167,14 @@ function MatchModalBody({
     }
   }
 
-  async function handleSearch() {
-    if (!searchQuery.trim()) return
-    setSearching(true)
-    try {
-      const res = await fetch(`/api/banking/search-invoices?q=${encodeURIComponent(searchQuery)}`)
-      const data = await res.json()
-      setSearchResults(data.results ?? [])
-    } catch {
-      toast.error("Search failed")
-    } finally {
-      setSearching(false)
-    }
-  }
-
-  async function handleManualMatch(transactionId: string) {
-    setLoading("manual-" + transactionId)
+  async function handleManualMatch() {
+    if (!selectedInvoiceId) return
+    setLoading("manual-" + selectedInvoiceId)
     try {
       const res = await fetch(`/api/banking/matches`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bankTransactionId: detail.id, transactionId }),
+        body: JSON.stringify({ bankTransactionId: detail.id, transactionId: selectedInvoiceId }),
       })
       if (!res.ok) {
         toast.error("Failed to link invoice")
@@ -301,52 +303,53 @@ function MatchModalBody({
         </div>
       )}
 
-      {/* Manual search */}
-      {!confirmedMatch && (noMatches || allRejected || suggestedMatches.length === 0) && (
+      {/* Manual match dropdown */}
+      {!confirmedMatch && (
         <div>
           <p className="text-sm font-medium mb-3">Link to an invoice manually</p>
-          <div className="flex gap-2 mb-3">
-            <Input
-              placeholder="Search by name or description…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="text-sm"
-            />
-            <Button variant="outline" size="sm" onClick={handleSearch} disabled={searching}>
-              {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            </Button>
-          </div>
-          {searchResults.length > 0 && (
-            <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
-              {searchResults.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{inv.name ?? "Untitled"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(inv.issuedAt)} · {formatAmount(inv.total, inv.currencyCode)}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={loading === "manual-" + inv.id}
-                    onClick={() => handleManualMatch(inv.id)}
-                  >
-                    <Link2 className="w-3 h-3 mr-1" />
-                    Link
-                  </Button>
-                </div>
-              ))}
+
+          {loadingInvoices && (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           )}
-          {searchResults.length === 0 && searchQuery && !searching && (
-            <p className="text-sm text-muted-foreground">
-              No invoices found for &quot;{searchQuery}&quot;.
-            </p>
+
+          {!loadingInvoices && invoices.length === 0 && (
+            <p className="text-sm text-muted-foreground">No invoices available.</p>
+          )}
+
+          {!loadingInvoices && invoices.length > 0 && (
+            <>
+              <select
+                value={selectedInvoiceId}
+                onChange={(e) => setSelectedInvoiceId(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background mb-3"
+              >
+                {invoices.map((inv) => {
+                  const name = (inv.name ?? "Untitled").slice(0, 30)
+                  const label = `${formatDate(inv.issuedAt)} — ${name} — ${formatAmount(inv.total, inv.currencyCode)}`
+                  return (
+                    <option key={inv.id} value={inv.id}>
+                      {label}
+                    </option>
+                  )
+                })}
+              </select>
+
+              <Button
+                size="sm"
+                disabled={!selectedInvoiceId || loading === "manual-" + selectedInvoiceId}
+                onClick={handleManualMatch}
+                className="w-full"
+              >
+                {loading === "manual-" + selectedInvoiceId ? (
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                ) : (
+                  <Link2 className="w-3 h-3 mr-1" />
+                )}
+                Lier
+              </Button>
+            </>
           )}
         </div>
       )}
