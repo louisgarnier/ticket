@@ -8,32 +8,37 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { searchParams } = new URL(request.url)
-  const q = searchParams.get("q")?.trim() ?? ""
+  try {
+    const { searchParams } = new URL(request.url)
+    const q = searchParams.get("q")?.trim() ?? ""
 
-  if (!q) {
-    return NextResponse.json({ results: [] })
+    if (!q) {
+      return NextResponse.json({ results: [] })
+    }
+
+    const results = await prisma.transaction.findMany({
+      where: {
+        userId: user.id,
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { description: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        total: true,
+        currencyCode: true,
+        issuedAt: true,
+        description: true,
+      },
+      orderBy: { issuedAt: "desc" },
+      take: 20,
+    })
+
+    return NextResponse.json({ results })
+  } catch (err) {
+    console.error("[search-invoices] error:", err)
+    return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
-
-  const results = await prisma.transaction.findMany({
-    where: {
-      userId: user.id,
-      OR: [
-        { name: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
-      ],
-    },
-    select: {
-      id: true,
-      name: true,
-      total: true,
-      currencyCode: true,
-      issuedAt: true,
-      description: true,
-    },
-    orderBy: { issuedAt: "desc" },
-    take: 20,
-  })
-
-  return NextResponse.json({ results })
 }

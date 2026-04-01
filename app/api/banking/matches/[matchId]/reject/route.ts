@@ -10,25 +10,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
 
   const { matchId } = await params
 
-  const match = await prisma.bankTransactionMatch.findFirst({
-    where: { id: matchId },
-    include: { bankTransaction: { select: { userId: true, id: true } } },
-  })
+  try {
+    const match = await prisma.bankTransactionMatch.findFirst({
+      where: { id: matchId },
+      include: { bankTransaction: { select: { userId: true, id: true } } },
+    })
 
-  if (!match) {
-    return NextResponse.json({ error: "Match not found" }, { status: 404 })
+    if (!match) {
+      return NextResponse.json({ error: "Match not found" }, { status: 404 })
+    }
+
+    if (match.bankTransaction.userId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    await prisma.bankTransactionMatch.update({
+      where: { id: matchId },
+      data: { status: "rejected", actionedAt: new Date(), actionedBy: user.id },
+    })
+
+    console.log(`✅ [BankingMatches] reject: matchId=${matchId} bankTransactionId=${match.bankTransaction.id} userId=${user.id}`)
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error("[matches/reject] error:", err)
+    return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
-
-  if (match.bankTransaction.userId !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
-
-  await prisma.bankTransactionMatch.update({
-    where: { id: matchId },
-    data: { status: "rejected", actionedAt: new Date(), actionedBy: user.id },
-  })
-
-  console.log(`✅ [BankingMatches] reject: matchId=${matchId} bankTransactionId=${match.bankTransaction.id} userId=${user.id}`)
-
-  return NextResponse.json({ ok: true })
 }

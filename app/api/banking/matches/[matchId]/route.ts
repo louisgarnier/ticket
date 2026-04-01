@@ -11,33 +11,38 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ m
 
   const { matchId } = await params
 
-  const match = await prisma.bankTransactionMatch.findFirst({
-    where: { id: matchId },
-    include: { bankTransaction: { select: { userId: true, id: true } } },
-  })
-
-  if (!match) {
-    return NextResponse.json({ error: "Match not found" }, { status: 404 })
-  }
-
-  if (match.bankTransaction.userId !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
-
-  const bankTransactionId = match.bankTransaction.id
-
-  await prisma.$transaction([
-    prisma.bankTransactionMatch.update({
+  try {
+    const match = await prisma.bankTransactionMatch.findFirst({
       where: { id: matchId },
-      data: { status: "suggested", actionedAt: null, actionedBy: null },
-    }),
-    prisma.bankTransactionMatch.updateMany({
-      where: { bankTransactionId, id: { not: matchId }, status: "rejected" },
-      data: { status: "suggested", actionedAt: null, actionedBy: null },
-    }),
-  ])
+      include: { bankTransaction: { select: { userId: true, id: true } } },
+    })
 
-  console.log(`✅ [BankingMatches] unmatch: matchId=${matchId} bankTransactionId=${bankTransactionId} userId=${user.id}`)
+    if (!match) {
+      return NextResponse.json({ error: "Match not found" }, { status: 404 })
+    }
 
-  return NextResponse.json({ ok: true })
+    if (match.bankTransaction.userId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const bankTransactionId = match.bankTransaction.id
+
+    await prisma.$transaction([
+      prisma.bankTransactionMatch.update({
+        where: { id: matchId },
+        data: { status: "suggested", actionedAt: null, actionedBy: null },
+      }),
+      prisma.bankTransactionMatch.updateMany({
+        where: { bankTransactionId, id: { not: matchId }, status: "rejected" },
+        data: { status: "suggested", actionedAt: null, actionedBy: null },
+      }),
+    ])
+
+    console.log(`✅ [BankingMatches] unmatch: matchId=${matchId} bankTransactionId=${bankTransactionId} userId=${user.id}`)
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error("[matches/delete] error:", err)
+    return NextResponse.json({ error: "Internal error" }, { status: 500 })
+  }
 }
