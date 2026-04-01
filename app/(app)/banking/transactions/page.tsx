@@ -1,9 +1,11 @@
 import { getCurrentUser } from "@/lib/auth"
-import { getBankTransactionsWithDetails, TRANSACTIONS_PAGE_SIZE } from "@/models/banking"
-import { Badge } from "@/components/ui/badge"
+import { getBankTransactionsWithDetails, getBankTransactionWithMatches, TRANSACTIONS_PAGE_SIZE } from "@/models/banking"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { Metadata } from "next"
+import { Suspense } from "react"
+import { TransactionRow } from "@/components/banking/transaction-row"
+import ClosePanel from "@/components/banking/close-panel"
 
 export const metadata: Metadata = {
   title: "Bank Transactions",
@@ -19,14 +21,20 @@ function isValidFilter(value: string | undefined): value is FilterParam {
 export default async function BankTransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; page?: string }>
+  searchParams: Promise<{ filter?: string; page?: string; selected?: string }>
 }) {
   const params = await searchParams
   const filter: FilterParam = isValidFilter(params.filter) ? params.filter : "all"
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1)
+  const selectedId = params.selected ?? null
 
   const user = await getCurrentUser()
   const { transactions, total, hasMore } = await getBankTransactionsWithDetails(user.id, filter, page, TRANSACTIONS_PAGE_SIZE)
+
+  // Fetch detail for selected transaction (if any)
+  const selectedDetail = selectedId
+    ? await getBankTransactionWithMatches(selectedId, user.id)
+    : null
 
   const filterTabs: { label: string; value: FilterParam }[] = [
     { label: "All", value: "all" },
@@ -100,44 +108,43 @@ export default async function BankTransactionsPage({
             </thead>
             <tbody className="divide-y">
               {transactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{tx.bookingDate}</td>
-                  <td
-                    className={`px-4 py-3 whitespace-nowrap text-right font-mono font-medium ${
-                      tx.amount < 0 ? "text-red-500" : "text-green-600"
-                    }`}
-                  >
-                    {tx.amount < 0 ? "-" : "+"}
-                    {Math.abs(tx.amount).toFixed(2)} {tx.currency}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="block max-w-xs truncate" title={tx.description}>
-                      {tx.description || <span className="text-muted-foreground italic">No description</span>}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                    {tx.institutionName || "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    {tx.matchStatus === "matched" ? (
-                      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
-                        {tx.isAutoMatched ? "Auto-matched" : "Matched"}
-                      </Badge>
-                    ) : tx.matchStatus === "suggested" ? (
-                      <Badge className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">
-                        {tx.suggestionCount} suggestion{tx.suggestionCount !== 1 ? "s" : ""}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
-                        Unmatched
-                      </Badge>
-                    )}
-                  </td>
-                </tr>
+                <Suspense key={tx.id} fallback={null}>
+                  <TransactionRow
+                    id={tx.id}
+                    bookingDate={tx.bookingDate}
+                    amount={tx.amount}
+                    currency={tx.currency}
+                    description={tx.description}
+                    institutionName={tx.institutionName}
+                    matchStatus={tx.matchStatus}
+                    isAutoMatched={tx.isAutoMatched}
+                    suggestionCount={tx.suggestionCount}
+                    isSelected={tx.id === selectedId}
+                    filter={filter}
+                    page={page}
+                  />
+                </Suspense>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Detail panel — rendered below the table when a transaction is selected */}
+      {selectedDetail && (
+        <Suspense fallback={null}>
+          <ClosePanel
+            bankTx={{
+              id: selectedDetail.id,
+              amount: selectedDetail.amount,
+              currency: selectedDetail.currency,
+              description: selectedDetail.description ?? null,
+              institutionName: selectedDetail.institutionName ?? null,
+              date: selectedDetail.date,
+              matches: selectedDetail.matches,
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Pagination */}

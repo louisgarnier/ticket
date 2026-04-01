@@ -170,3 +170,40 @@ export async function getBankTransactionMatches(bankTransactionId: string) {
     orderBy: { confidenceScore: "desc" },
   })
 }
+
+export async function getBankTransactionWithMatches(bankTransactionId: string, userId: string) {
+  const bankTx = await prisma.bankTransaction.findFirst({
+    where: { id: bankTransactionId, userId },
+    include: {
+      matches: {
+        orderBy: { confidenceScore: "desc" },
+      },
+    },
+  })
+
+  if (!bankTx) return null
+
+  // Fetch linked Transaction (invoice) details for each match that has a transactionId
+  const transactionIds = bankTx.matches
+    .filter((m) => m.transactionId)
+    .map((m) => m.transactionId as string)
+
+  const invoices =
+    transactionIds.length > 0
+      ? await prisma.transaction.findMany({
+          where: { id: { in: transactionIds }, userId },
+          select: { id: true, name: true, total: true, currencyCode: true, issuedAt: true, description: true },
+        })
+      : []
+
+  const invoiceMap = new Map(invoices.map((inv) => [inv.id, inv]))
+
+  return {
+    ...bankTx,
+    amount: Number(bankTx.amount),
+    matches: bankTx.matches.map((m) => ({
+      ...m,
+      invoice: m.transactionId ? (invoiceMap.get(m.transactionId) ?? null) : null,
+    })),
+  }
+}
