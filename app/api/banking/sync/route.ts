@@ -53,14 +53,16 @@ export async function POST(request: Request) {
 
     ;({ inserted } = await createBankTransactionsBulk(transactions))
 
-    // Run matching engine for all bank transactions in this connection
-    const allBankTxs = await prisma.bankTransaction.findMany({
+    await updateBankConnectionLastSynced(accountUid)
+
+    // Fire-and-forget: run matching engine after response is sent — don't block the sync response
+    const userId = user.id
+    prisma.bankTransaction.findMany({
       where: { accountUid: connection.accountUid },
       select: { id: true },
-    })
-    await Promise.allSettled(allBankTxs.map((tx) => scoreForBankTransaction(tx.id, user.id)))
-
-    await updateBankConnectionLastSynced(accountUid)
+    }).then((allBankTxs) =>
+      Promise.allSettled(allBankTxs.map((tx) => scoreForBankTransaction(tx.id, userId)))
+    ).catch((err) => console.error("[BankingSync] background scoring error:", err))
 
     console.log(`✅ [BankingSync] synced: accountUid=${accountUid} inserted=${inserted}`)
   } catch (err) {

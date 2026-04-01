@@ -12,8 +12,23 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const bankTransactionDate = searchParams.get("bankTransactionDate")?.trim()
 
+    // Find invoice IDs already confirmed-matched to a bank transaction
+    const confirmedMatches = await prisma.bankTransactionMatch.findMany({
+      where: {
+        status: "confirmed",
+        transactionId: { not: null },
+        bankTransaction: { userId: user.id },
+      },
+      select: { transactionId: true },
+    })
+    const matchedInvoiceIds = confirmedMatches.map((m) => m.transactionId!).filter(Boolean)
+
     const invoices = await prisma.transaction.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        // Exclude already-matched invoices
+        ...(matchedInvoiceIds.length > 0 ? { id: { notIn: matchedInvoiceIds } } : {}),
+      },
       select: {
         id: true,
         name: true,
