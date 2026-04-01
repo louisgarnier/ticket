@@ -4,7 +4,6 @@ import { TransactionSearchAndFilters } from "@/components/transactions/filters"
 import { InvoiceList } from "@/components/banking/invoice-list"
 import { NewTransactionDialog } from "@/components/transactions/new"
 import { Pagination } from "@/components/transactions/pagination"
-import { Button } from "@/components/ui/button"
 import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { getCategories } from "@/models/categories"
@@ -120,10 +119,8 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                 <Upload /> Analyze New Invoice
               </UploadButton>
               <NewTransactionDialog>
-                <Button variant="outline">
-                  <Plus />
-                  Add Manually
-                </Button>
+                <Plus />
+                Add Manually
               </NewTransactionDialog>
             </div>
           </div>
