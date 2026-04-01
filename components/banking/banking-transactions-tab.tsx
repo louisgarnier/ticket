@@ -402,7 +402,7 @@ export function BankingTransactionsTab({ transactions }: BankingTransactionsTabP
 
   return (
     <>
-      <div className="border rounded-lg overflow-auto max-h-[calc(100vh-340px)]">
+      <div className="border rounded-lg overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted sticky top-0 z-10">
             <tr>

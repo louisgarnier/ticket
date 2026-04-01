@@ -80,26 +80,27 @@ export default async function BankingPage({
 
         {tabNav}
 
-        <div className="flex gap-6 items-start">
-          {/* Left: connections list */}
-          <div className="flex-1 min-w-0 flex flex-col gap-4 mr-80">
-            {connections.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-4 min-h-[300px] text-muted-foreground border rounded-lg">
-                <Landmark className="w-12 h-12" />
-                <p className="text-lg font-medium">No bank accounts connected yet</p>
-                <p className="text-sm">Connect your bank using the panel on the right</p>
-              </div>
-            ) : (
-              <BankConnectionsList connections={connections} />
-            )}
-          </div>
-
-          {/* Right: connect form — fixed */}
-          <div className="w-72 shrink-0 fixed top-4 right-4 bg-background z-10">
+        {/* Stacked on mobile, side-by-side on desktop */}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+          {/* Connect form — top on mobile, right column on desktop */}
+          <div className="w-full lg:w-72 lg:shrink-0 order-first lg:order-last">
             <div className="border rounded-lg p-4 flex flex-col gap-4 shadow-sm">
               <h3 className="text-base font-semibold">Connect a bank account</h3>
               <BankConnectForm />
             </div>
+          </div>
+
+          {/* Connections list */}
+          <div className="flex-1 min-w-0 flex flex-col gap-4">
+            {connections.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-4 min-h-[200px] text-muted-foreground border rounded-lg">
+                <Landmark className="w-12 h-12" />
+                <p className="text-lg font-medium">No bank accounts connected yet</p>
+                <p className="text-sm">Use the form above to connect your bank</p>
+              </div>
+            ) : (
+              <BankConnectionsList connections={connections} />
+            )}
           </div>
         </div>
       </div>
