@@ -42,7 +42,7 @@ export function TransactionRow({
     } else {
       params.set("selected", id)
     }
-    router.push(`/banking/transactions?${params.toString()}`)
+    router.push(`/banking?${params.toString()}`)
   }
 
   return (

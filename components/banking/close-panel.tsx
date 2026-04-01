@@ -41,7 +41,7 @@ export default function ClosePanel({ bankTx }: ClosePanelProps) {
   function handleClose() {
     const params = new URLSearchParams(searchParams.toString())
     params.delete("selected")
-    router.push(`/banking/transactions?${params.toString()}`)
+    router.push(`/banking?${params.toString()}`)
   }
 
   return <MatchDetailPanel bankTx={bankTx} onClose={handleClose} />
