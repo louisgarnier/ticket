@@ -39,7 +39,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
       select: { transactionId: true },
     })
     idIn = rows.map((r) => r.transactionId!).filter(Boolean)
-    if (idIn.length === 0) idIn = ["__none__"] // force empty result
+    if (idIn.length === 0) idIn = ["00000000-0000-0000-0000-000000000000"] // force empty result
   } else if (bankMatch === "pending") {
     const confirmedRows = await prisma.bankTransactionMatch.findMany({
       where: { status: "confirmed", transactionId: { not: null }, bankTransaction: { userId: user.id } },
@@ -52,7 +52,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     })
     idIn = [...new Set(suggestedRows.map((r) => r.transactionId!).filter(Boolean))]
       .filter((id) => !confirmedIds.has(id))
-    if (idIn.length === 0) idIn = ["__none__"]
+    if (idIn.length === 0) idIn = ["00000000-0000-0000-0000-000000000000"]
   }
 
   const { transactions, total } = await getTransactions(user.id, { ...filters, idIn }, {
