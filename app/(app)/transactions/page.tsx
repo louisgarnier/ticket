@@ -1,7 +1,7 @@
 import { ExportTransactionsDialog } from "@/components/export/transactions"
 import { UploadButton } from "@/components/files/upload-button"
 import { TransactionSearchAndFilters } from "@/components/transactions/filters"
-import { TransactionList } from "@/components/transactions/list"
+import { InvoiceList } from "@/components/banking/invoice-list"
 import { NewTransactionDialog } from "@/components/transactions/new"
 import { Pagination } from "@/components/transactions/pagination"
 import { Button } from "@/components/ui/button"
@@ -58,7 +58,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
       <TransactionSearchAndFilters categories={categories} projects={projects} fields={fields} />
 
       <main>
-        <TransactionList transactions={transactions} fields={fields} />
+        <InvoiceList transactions={transactions} fields={fields} />
 
         {total > TRANSACTIONS_PER_PAGE && <Pagination totalItems={total} itemsPerPage={TRANSACTIONS_PER_PAGE} />}
 

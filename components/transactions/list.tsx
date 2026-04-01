@@ -179,7 +179,15 @@ const getFieldRenderer = (field: Field): FieldRenderer => {
   }
 }
 
-export function TransactionList({ transactions, fields = [] }: { transactions: Transaction[]; fields?: Field[] }) {
+export function TransactionList({
+  transactions,
+  fields = [],
+  onRowClick,
+}: {
+  transactions: Transaction[]
+  fields?: Field[]
+  onRowClick?: (transaction: Transaction) => void
+}) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -223,7 +231,12 @@ export function TransactionList({ transactions, fields = [] }: { transactions: T
   }
 
   const handleRowClick = (id: string) => {
-    router.push(`/transactions/${id}`)
+    const transaction = transactions.find((t) => t.id === id)
+    if (onRowClick && transaction) {
+      onRowClick(transaction)
+    } else {
+      router.push(`/transactions/${id}`)
+    }
   }
 
   const handleSort = (field: string) => {

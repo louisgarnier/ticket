@@ -1,13 +1,11 @@
 import { getCurrentUser } from "@/lib/auth"
-import { getBankConnections, getBankTransactionsWithDetails, getBankTransactionWithMatches } from "@/models/banking"
+import { getBankConnections, getBankTransactionsWithDetails } from "@/models/banking"
 import { BankConnectForm } from "@/components/banking/bank-connect-form"
 import { BankConnectionsList } from "@/components/banking/bank-connections-list"
+import { BankingTransactionsTab } from "@/components/banking/banking-transactions-tab"
 import { Landmark } from "lucide-react"
 import { Metadata } from "next"
 import Link from "next/link"
-import { Suspense } from "react"
-import { TransactionRow } from "@/components/banking/transaction-row"
-import ClosePanel from "@/components/banking/close-panel"
 
 export const metadata: Metadata = {
   title: "Banking",
@@ -27,13 +25,12 @@ function isValidLimit(value: number): value is 50 | 100 | 200 | 500 {
 export default async function BankingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; filter?: string; page?: string; selected?: string; limit?: string }>
+  searchParams: Promise<{ tab?: string; filter?: string; page?: string; limit?: string }>
 }) {
   const params = await searchParams
   const tab = params.tab === "config" ? "config" : "transactions"
   const filter: FilterParam = isValidFilter(params.filter) ? params.filter : "all"
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1)
-  const selectedId = params.selected ?? null
   const rawLimit = parseInt(params.limit ?? "50", 10)
   const limit = isValidLimit(rawLimit) ? rawLimit : 50
 
@@ -112,10 +109,6 @@ export default async function BankingPage({
   // Transactions tab
   const { transactions, total, hasMore } = await getBankTransactionsWithDetails(user.id, filter, page, limit)
 
-  const selectedDetail = selectedId
-    ? await getBankTransactionWithMatches(selectedId, user.id)
-    : null
-
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-2">
@@ -181,58 +174,7 @@ export default async function BankingPage({
           </p>
         </div>
       ) : (
-        <div className="border rounded-lg overflow-auto max-h-[calc(100vh-340px)]">
-          <table className="w-full text-sm">
-            <thead className="bg-muted sticky top-0 z-10">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Amount</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
-                  Institution
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {transactions.map((tx) => (
-                <Suspense key={tx.id} fallback={null}>
-                  <TransactionRow
-                    id={tx.id}
-                    bookingDate={tx.bookingDate}
-                    amount={tx.amount}
-                    currency={tx.currency}
-                    description={tx.description}
-                    institutionName={tx.institutionName}
-                    matchStatus={tx.matchStatus}
-                    isAutoMatched={tx.isAutoMatched}
-                    suggestionCount={tx.suggestionCount}
-                    isSelected={tx.id === selectedId}
-                    filter={filter}
-                    page={page}
-                  />
-                </Suspense>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Detail panel */}
-      {selectedDetail && (
-        <Suspense fallback={null}>
-          <ClosePanel
-            bankTx={{
-              id: selectedDetail.id,
-              amount: selectedDetail.amount,
-              currency: selectedDetail.currency,
-              description: selectedDetail.description ?? null,
-              institutionName: selectedDetail.institutionName ?? null,
-              date: selectedDetail.date,
-              matches: selectedDetail.matches,
-            }}
-          />
-        </Suspense>
+        <BankingTransactionsTab transactions={transactions} />
       )}
 
       {/* Pagination */}
