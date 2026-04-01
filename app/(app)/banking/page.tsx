@@ -183,7 +183,7 @@ export default async function BankingPage({
       ) : (
         <div className="border rounded-lg overflow-auto max-h-[calc(100vh-340px)]">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 sticky top-0 z-10">
+            <thead className="bg-muted sticky top-0 z-10">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground">Amount</th>
