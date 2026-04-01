@@ -92,7 +92,7 @@ export async function getBankTransactions(
 
 export async function getBankTransactionsWithDetails(
   userId: string,
-  filter: "all" | "matched" | "unmatched" = "all",
+  filter: "all" | "matched" | "unmatched" | "pending" = "all",
   page: number = 1,
   limit: number = TRANSACTIONS_PAGE_SIZE
 ) {
@@ -106,6 +106,9 @@ export async function getBankTransactionsWithDetails(
     // "unmatched" means no confirmed match exists — this intentionally includes transactions
     // with zero match records AND transactions with only suggested/rejected matches.
     where.matches = { none: { status: "confirmed" } }
+  } else if (filter === "pending") {
+    // "pending" = has at least one suggestion but no confirmed match yet
+    where.matches = { some: { status: "suggested" }, none: { status: "confirmed" } }
   }
 
   const [transactions, total] = await Promise.all([

@@ -12,10 +12,10 @@ export const metadata: Metadata = {
   description: "View your synced bank transactions",
 }
 
-type FilterParam = "all" | "matched" | "unmatched"
+type FilterParam = "all" | "matched" | "unmatched" | "pending"
 
 function isValidFilter(value: string | undefined): value is FilterParam {
-  return value === "all" || value === "matched" || value === "unmatched"
+  return value === "all" || value === "matched" || value === "unmatched" || value === "pending"
 }
 
 export default async function BankTransactionsPage({
@@ -39,6 +39,7 @@ export default async function BankTransactionsPage({
   const filterTabs: { label: string; value: FilterParam }[] = [
     { label: "All", value: "all" },
     { label: "Matched", value: "matched" },
+    { label: "Pending", value: "pending" },
     { label: "Unmatched", value: "unmatched" },
   ]
 
@@ -84,6 +85,8 @@ export default async function BankTransactionsPage({
           <p className="text-sm">
             {filter === "all"
               ? "No bank transactions synced yet."
+              : filter === "pending"
+              ? "No transactions with pending suggestions."
               : `No ${filter} transactions found.`}{" "}
             {filter === "all" && (
               <Link href="/banking" className="underline hover:text-foreground transition-colors">
