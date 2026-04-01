@@ -33,6 +33,7 @@ export type TransactionFilters = {
   projectCode?: string
   type?: string
   page?: number
+  idIn?: string[]
 }
 
 export type TransactionPagination = {
@@ -80,6 +81,10 @@ export const getTransactions = cache(
 
       if (filters.type) {
         where.type = filters.type
+      }
+
+      if (filters.idIn) {
+        where.id = { in: filters.idIn }
       }
 
       if (filters.ordering) {
