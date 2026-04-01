@@ -10,6 +10,12 @@ function CallbackContent() {
   const [error, setError] = useState("")
 
   useEffect(() => {
+    const bankError = searchParams.get("error")
+    if (bankError) {
+      setError(`Bank returned an error: ${bankError}. Please try again.`)
+      return
+    }
+
     const code = searchParams.get("code")
     if (!code) {
       setError("No authorization code received from bank.")
