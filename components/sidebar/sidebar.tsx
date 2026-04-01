@@ -82,7 +82,7 @@ export function AppSidebar({
                   <SidebarMenuButton asChild>
                     <Link href="/transactions">
                       <FileText />
-                      <span>Transactions</span>
+                      <span>Invoices</span>
                       {notification && notification.code === "sidebar.transactions" && notification.message && (
                         <Blinker />
                       )}

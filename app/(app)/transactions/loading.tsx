@@ -7,7 +7,7 @@ export default function Loading() {
     <>
       <header className="flex items-center justify-between mb-12">
         <h2 className="flex flex-row gap-3 md:gap-5">
-          <span className="text-3xl font-bold tracking-tight">Transactions</span>
+          <span className="text-3xl font-bold tracking-tight">Invoices</span>
           <Loader2 className="h-10 w-10 animate-spin" />
         </h2>
         <div className="flex gap-2">
